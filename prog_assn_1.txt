@@ -1,0 +1,20 @@
+# PROGRAM: Programming Assignment 1 (String to Hex)
+	.data                                                        #data section
+	string: .space 8                                             #allocates 8 bytes of space in memory
+	error_string: .asciiz "\nInvalid hexadecimal number.\n"      #string to output if input is not hex
+	input_string: .asciiz "\nEnter a string of 8 characters: \n" #string to output to request user input
+	.text                                                        #code section
+main:
+
+	li $v0, 10                                                   #exit program
+	syscall
+
+invalid:
+	li $v0,                                                      #syscall code for printing string
+	la $a0, error_string                                         #load address of string to print into $a0
+
+request_input:
+	li $v0,                                                      #syscall code for printing string
+	la $a0, input_string                                         #load address of string to print into $a0
+
+valid:
