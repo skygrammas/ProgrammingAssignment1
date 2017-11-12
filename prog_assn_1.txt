@@ -2,137 +2,113 @@
 	.data                                                        #data section
 	string: .space 9                                             #allocates 9 bytes of space in memory
 	error_string: .asciiz "\nInvalid hexadecimal number.\n"      #string to output if input is not hex
-	input_string: .asciiz "\nEnter a string of 8 characters: \n" #string to output to request user input
+	input_string: .asciiz "\nEnter a string of 8 characters: "   #string to output to request user input
 	.text                                                        #code section
 main:
+	jal request_input
+	jal read_input
+	jal store_input
+	addi $s2, $0, 0                                              #initialize string_length counter
+	add $t2, $0, $s1                                             #shallow copy of string
+	addi $s4, $0, 0                                              #initialize total hex value of valid string
+	addi $t5, $0, 0                                              #initialize index tracker
+	j string_length
 
+print:
+	bne $t8, $s2, next_char
+	li $v0, 1
+	la $a0, ($s4)
+	syscall
 	li $v0, 10                                                   #exit program
 	syscall
-
-invalid:
-	li $v0, 4                                                    #syscall code for printing string
-	la $a0, error_string                                         #load address of string to print into $a0
 
 request_input:
 	li $v0, 4                                                    #syscall code for printing string
 	la $a0, input_string                                         #load address of string to print into $a0
+	syscall
+	jr $ra
+	
+read_input:                                                          #reads input from user
+	li $v0, 8
+	la $a0, string
+	li $a1, 9
+	syscall
+	jr $ra
+	
+store_input:                                                         #moves input from user to $s1
+	move $s1, $a0
+	jr $ra
+	
+evaluate_input:                                                      #loops to check each character in string
+	lb $t0, 0($s1)						     #loads first character into $t0
+	jal check_validity
+	
+string_length:                                                       #determines length of the string
+	lb $t1, 0($t2)
+	beq $t1, 0, evaluate_input
+	beq $t1, 10, evaluate_input                                  #if string at end of string -> move on
+	addi $s2, $s2, 1                                             #increments string_length counter
+	addi $t2, $t2, 1                                             #moves evaluation to next character
+	j string_length
+next_char:
+	j evaluate_input
+	
+check_validity:
+	blt $t0, 48, invalid
+	blt $t0, 58, value					     #checks if character is 0-9
+	blt $t0, 65, invalid
+	blt $t0, 71, value					     #checks if character is A-F
+	blt $t0, 97, invalid
+	blt $t0, 103, value					     #checks if character is a-f
+	j invalid
 
+	
+value:
+	blt $t0, 58, number
+	blt $t0, 71, upper_case
+	blt $t0, 103, lower_case
+number:
+	addi $t9, $t0, -48
+	j valid
+lower_case:
+	addi $t9, $t0, -87
+	j valid
+upper_case:
+	addi $t9, $t0, -55
+	j valid
+		
+invalid:
+	li $v0, 4
+	la $a0, error_string                                         #load address of string to print into $a0
+	syscall
+	li $v0, 10                                                   #exits program
+	syscall
+	
 valid:
-
-
-1. request output
-2. read input
-3. evaluate input
-	put 0 or 1 in reg
-	if reg==0 //false
-		(convert)
-	if reg==1 //true
-		print error string
-		exit
-4. exit
-
-###########PROGRAMMING ASSIGNMENT IN C++############
-#include <string>
-#include <iostream>
-using namespace std;
-
-int main()
-{
-	string user_input;
-	bool valid_input = 1;
-	cout << "Enter a string up to 8 characters: ";
-	cin >> user_input;
-	int stringLength = user_input.length(), hexValue = 0;
-	for (int i = 0; i < stringLength; i++) 
-	{
-		if ((user_input[i] == '0') || (user_input[i] == '1') || (user_input[i] == '2') || (user_input[i] == '3') || (user_input[i] == '4') || (user_input[i] == '5') || (user_input[i] == '6') 
-			|| (user_input[i] == '7') || (user_input[i] == '8') || (user_input[i] == '9') || (user_input[i] == 'a') || (user_input[i] == 'b') || (user_input[i] == 'c') || (user_input[i] == 'd') 
-			|| (user_input[i] == 'e') || (user_input[i] == 'f') || (user_input[i] == 'A') || (user_input[i] == 'B') || (user_input[i] == 'C') || (user_input[i] == 'D') || (user_input[i] == 'E') 
-			|| (user_input[i] == 'F'))
-		{
-			int charValue = 0;
-			switch (user_input[i])
-			{
-			case '0':
-				charValue = 0;
-				break;
-			case '1':
-				charValue = 1;
-				break;
-			case '2':
-				charValue = 2;
-				break;
-			case '3':
-				charValue = 3;
-				break;
-			case '4':
-				charValue = 4;
-				break;
-			case '5':
-				charValue = 5;
-				break;
-			case '6':
-				charValue = 6;
-				break;
-			case '7':
-				charValue = 7;
-				break;
-			case '8':
-				charValue = 8;
-				break;
-			case '9':
-				charValue = 9;
-				break;
-			case 'a':
-				charValue = 10;
-				break;
-			case 'b':
-				charValue = 11;
-				break;
-			case 'c':
-				charValue = 12;
-				break;
-			case 'd':
-				charValue = 13;
-				break;
-			case 'e':
-				charValue = 14;
-				break;
-			case 'f':
-				charValue = 15;
-				break;
-			case 'A':
-				charValue = 10;
-				break;
-			case 'B':
-				charValue = 11;
-				break;
-			case 'C':
-				charValue = 12;
-				break;
-			case 'D':
-				charValue = 13;
-				break;
-			case 'E':
-				charValue = 14;
-				break;
-			case 'F':
-				charValue = 15;
-				break;
-			}
-			hexValue += charValue * ( pow(16, (stringLength - i - 1)) );
-			cout << "Length: " << stringLength << " Index: " << i << " Hex value: " << charValue << endl << hexValue << endl;
-		}
-		else 
-		{
-			cout << "Invalid hexadecimal number." << endl;
-			valid_input = 0;
-			return 0;
-		}
-	}
-	if (valid_input == 1) 
-	{
-		cout << endl << hexValue << endl;
-	}
-	return 0;
-}
+	addi $s5, $0, 16					     #initialize base value
+	addi $t4, $0, 0						     #initializes exponent value
+	sub $t4, $s2, $t5					     #subtracts index from string_length and sets as exponent
+	addi $t4, $t4, -1					     #subtracts one more from exponent and sets as exponent
+	addi $t7, $0, 1						     #initialize temp product
+	beq $t4, 0, exponent_zero				     #checks if exponent = 0
+	beq $t4, 1, precalculation
+loop:
+	mult $s5, $t7						     #multiplies base $t4 amount of times
+	mflo $t7						     #moves multiplied value to $t7
+	addi $t4, $t4, -1					     #decrements $t4
+	beq $t4, 1, calculation					     #moves on to calculation
+	j loop
+	
+exponent_zero:
+	addi $t7, $0, 1
+	j calculation						     #go straight to calculation
+	
+precalculation:
+	addi $t7, $0, 16					     #sets $t7 to 16 for special case
+calculation:
+	mult $t9, $t7						     #multiplies character (hex) value by 16^n ($s5)
+	mflo $t3						     #$t3 holds the product
+	add $s4, $s4, $t3					     #adds calculation to total hex value
+	addi $s1, $s1, 1					     #updates pointer to string for next character
+	addi $t5, $t5, 1                                             #increments index tracker
+	j print
