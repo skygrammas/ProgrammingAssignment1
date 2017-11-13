@@ -1,122 +1,137 @@
+###################################################################### String_to_Hex
+# Prompts user for a string, reads it, and returns its hexadecimal value
+#
+# Argument registers
+# $a0: requests input/return value   $a1: reads string from user input
+#
+# Temporary registers
+# $t0: characters in string          $t1: temp reg for string_length
+# $t2: shallow copy of string        $t3: temp reg to hold hex value
+# $t4: exponent value		     $t5: index tracker
+# $t7: weight multiplier for calc    $t8: temp reg to hold index comparison
+# $t9: temp reg to hold hexadecimal value of a valid character
+#
+# Saved registers
+# $s1: string			     $s2: length of string
+# $s4: hexadecimal value of string   $s5: base value
+#
 # PROGRAM: Programming Assignment 1 (String to Hex)
-	.data                                                        #data section
-	string: .space 9                                             #allocates 9 bytes of space in memory
-	error_string: .asciiz "\nInvalid hexadecimal number.\n"      #string to output if input is not hex
-	input_string: .asciiz "\nEnter a string of 8 characters: "   #string to output to request user input
-	.text                                                        #code section
+	.data                                                        # data section
+	string: .space 10                                            # allocates 10 bytes of space in memory
+	error_string: .asciiz "\nInvalid hexadecimal number.\n"      # string to output if input is not hex
+	input_string: .asciiz "\nEnter a string of 8 characters: "   # string to output to request user input
+	.text                                                        # code section
 main:
 	jal request_input
 	jal read_input
 	jal store_input
-	addi $s2, $0, 0                                              #initialize string_length counter
-	add $t2, $0, $s1                                             #shallow copy of string
-	addi $s4, $0, 0                                              #initialize total hex value of valid string
-	addi $t5, $0, 0                                              #initialize index tracker
+	addi $s2, $0, 0                                              # initialize string_length counter
+	add $t2, $0, $s1                                             # shallow copy of string
+	addi $s4, $0, 0                                              # initialize total hex value of valid string
+	addi $t5, $0, 0                                              # initialize index tracker
 	jal string_length
 string_length_exit:
 	jal load_input
 	jal check_validity
-	
 
 print:
-	bne $t8, $s2, next_char					     #if all chars weren't checked move onto next char
+	bne $t8, $s2, next_char					     # if all chars weren't checked move onto next char
 	li $v0, 1
-	la $a0, ($s4)						     #print contents of $s4 (total hex value)
+	la $a0, ($s4)						     # print contents of $s4 (total hex value)
 	syscall
-	li $v0, 10                                                   #exit program
+	li $v0, 10                                                   # exit program
 	syscall
 
 request_input:
-	li $v0, 4                                                    #syscall code for printing string
-	la $a0, input_string                                         #load address of string to print into $a0
+	li $v0, 4                                                    # syscall code for printing string
+	la $a0, input_string                                         # load address of string to print into $a0
 	syscall
 	jr $ra
-	
-read_input:                                                          #reads input from user
+
+read_input:                                                          # reads input from user
 	li $v0, 8
 	la $a0, string
-	li $a1, 9
+	li $a1, 10
 	syscall
 	jr $ra
-	
-store_input:                                                         #moves input from user to $s1
+
+store_input:                                                         # moves input from user to $s1
 	move $s1, $a0
 	jr $ra
 
-next_char:							     #jumps to evaluation
+next_char:							     # jumps to reload_input
 	j reload_input
-reload_input:
-	addi $s1, $s1, 1					     #updates pointer to string for next character
+reload_input:							     # updates pointer to string for next character
+	addi $s1, $s1, 1
 	lb $t0, 0($s1)
 	j check_validity
-load_input:                                                          #loads first character into $t0
+load_input:                                                          # loads first character into $t0
 	lb $t0, 0($s1)
 	jr $ra
-	
-string_length:                                                       #determines length of the string
+
+string_length:                                                       # determines length of the string
 	lb $t1, 0($t2)
 	beq $t1, 0, string_length_exit
-	beq $t1, 10, string_length_exit                              #if string at end of string -> move on
-	addi $s2, $s2, 1                                             #increments string_length counter
-	addi $t2, $t2, 1                                             #moves evaluation to next character
+	beq $t1, 10, string_length_exit                              # if string at end of string -> move on
+	addi $s2, $s2, 1                                             # increments string_length counter
+	addi $t2, $t2, 1                                             # moves evaluation to next character
 	j string_length
 	jr $ra
-	
+
 check_validity:
 	blt $t0, 48, invalid
-	blt $t0, 58, value					     #checks if character is 0-9
+	blt $t0, 58, value					     # checks if character is 0-9
 	blt $t0, 65, invalid
-	blt $t0, 71, value					     #checks if character is A-F
+	blt $t0, 71, value					     # checks if character is A-F
 	blt $t0, 97, invalid
-	blt $t0, 103, value					     #checks if character is a-f
+	blt $t0, 103, value					     # checks if character is a-f
 	j invalid
-	
-value:								     #checks char's type
+
+value:								     # checks char's type
 	blt $t0, 58, number
 	blt $t0, 71, upper_case
 	blt $t0, 103, lower_case
-number:								     #turns decimal to hex value
-	addi $t9, $t0, -48					     #placed in shallow copy reg ($t9)
+number:								     # turns decimal to hex value
+	addi $t9, $t0, -48					     # placed in shallow copy reg ($t9)
 	j valid
-lower_case:							     #turns letter to hex value
-	addi $t9, $t0, -87					     #placed in shallow copy reg ($t9)
+lower_case:							     # turns letter to hex value
+	addi $t9, $t0, -87					     # placed in shallow copy reg ($t9)
 	j valid
-upper_case:							     #turns letter to hex value
-	addi $t9, $t0, -55					     #placed in shallow copy reg ($t9)
+upper_case:							     # turns letter to hex value
+	addi $t9, $t0, -55					     # placed in shallow copy reg ($t9)
 	j valid
-		
+
 invalid:
 	li $v0, 4
-	la $a0, error_string                                         #load address of string to print into $a0
+	la $a0, error_string                                         # load address of string to print into $a0
 	syscall
-	li $v0, 10                                                   #exits program
+	li $v0, 10                                                   # exits program
 	syscall
-	
+
 valid:
-	addi $s5, $0, 16					     #initialize base value
-	addi $t4, $0, 0						     #initializes exponent value
-	sub $t4, $s2, $t5					     #subtracts index from string_length and sets as exponent
-	addi $t4, $t4, -1					     #subtracts one more from exponent and sets as exponent
-	addi $t7, $0, 16				 	     #initialize temp product
-	beq $t4, 0, exponent_zero				     #checks if exponent = 0
+	addi $s5, $0, 16					     # initialize base value
+	addi $t4, $0, 0						     # initializes exponent value
+	sub $t4, $s2, $t5					     # subtracts index from string_length and sets as exponent
+	addi $t4, $t4, -1					     # subtracts one more from exponent and sets as exponent
+	addi $t7, $0, 16				 	     # initialize temp product
+	beq $t4, 0, exponent_zero				     # checks if exponent = 0
 	beq $t4, 1, exponent_one
 loop:
-	mult $s5, $t7						     #multiplies base $t4 amount of times
-	mflo $t7						     #moves multiplied value to $t7
-	addi $t4, $t4, -1					     #decrements $t4
-	beq $t4, 1, calculation					     #moves on to calculation
+	mult $s5, $t7						     # multiplies base $t4 amount of times
+	mflo $t7						     # moves multiplied value to $t7
+	addi $t4, $t4, -1					     # decrements $t4
+	beq $t4, 1, calculation					     # moves on to calculation
 	j loop
-	
-exponent_zero:							     #sets multiplier to one if 16^0
+
+exponent_zero:							     # sets multiplier to one if 16^0
 	addi $t7, $0, 1
-	j calculation						     #move on to calculation
-exponent_one:							     #sets multiplier to sixteen if 16^1
+	j calculation						     # move on to calculation
+exponent_one:							     # sets multiplier to sixteen if 16^1
 	addi $t7, $0, 16					     
 calculation:
-	mult $t9, $t7						     #multiplies character (hex) value by 16^n ($t7)
-	mflo $t3						     #$t3 holds the product
-	add $s4, $s4, $t3					     #adds calculation to total hex value
-	#addi $s1, $s1, 1					     #updates pointer to string for next character
-	addi $t5, $t5, 1                                             #increments index tracker
-	addi $t8, $t5, 1					     #temp reg for line 22 comparison (index+1==length)
+	mult $t9, $t7						     # multiplies character (hex) value by 16^n ($t7)
+	mflo $t3						     # $t3 holds the product
+	add $s4, $s4, $t3					     # adds calculation to total hex value
+	addi $t5, $t5, 1                                             # increments index tracker
+	addi $t8, $t5, 0					     # temp reg for line 22 comparison (index==length)
 	j print
