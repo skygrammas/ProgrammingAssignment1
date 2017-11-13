@@ -17,7 +17,7 @@
 #
 # PROGRAM: Programming Assignment 1 (String to Hex)
 	.data                                                        # data section
-	string: .space 10                                            # allocates 10 bytes of space in memory
+	string: .space 9                                             # allocates 9 bytes of space in memory
 	error_string: .asciiz "\nInvalid hexadecimal number.\n"      # string to output if input is not hex
 	input_string: .asciiz "\nEnter a string of 8 characters: "   # string to output to request user input
 	.text                                                        # code section
@@ -36,7 +36,7 @@ string_length_exit:
 
 print:
 	bne $t8, $s2, next_char					     # if all chars weren't checked move onto next char
-	li $v0, 1
+	li $v0, 36						     # prints the register as unsigned int (call code 36)
 	la $a0, ($s4)						     # print contents of $s4 (total hex value)
 	syscall
 	li $v0, 10                                                   # exit program
@@ -51,7 +51,7 @@ request_input:
 read_input:                                                          # reads input from user
 	li $v0, 8
 	la $a0, string
-	li $a1, 10
+	li $a1, 9
 	syscall
 	jr $ra
 
