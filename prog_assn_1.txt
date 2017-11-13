@@ -12,12 +12,16 @@ main:
 	add $t2, $0, $s1                                             #shallow copy of string
 	addi $s4, $0, 0                                              #initialize total hex value of valid string
 	addi $t5, $0, 0                                              #initialize index tracker
-	j string_length
+	jal string_length
+string_length_exit:
+	jal load_input
+	jal check_validity
+	
 
 print:
-	bne $t8, $s2, next_char
+	bne $t8, $s2, next_char					     #if all chars weren't checked move onto next char
 	li $v0, 1
-	la $a0, ($s4)
+	la $a0, ($s4)						     #print contents of $s4 (total hex value)
 	syscall
 	li $v0, 10                                                   #exit program
 	syscall
@@ -38,20 +42,25 @@ read_input:                                                          #reads inpu
 store_input:                                                         #moves input from user to $s1
 	move $s1, $a0
 	jr $ra
-	
-evaluate_input:                                                      #loops to check each character in string
-	lb $t0, 0($s1)						     #loads first character into $t0
-	jal check_validity
+
+next_char:							     #jumps to evaluation
+	j reload_input
+reload_input:
+	addi $s1, $s1, 1					     #updates pointer to string for next character
+	lb $t0, 0($s1)
+	j check_validity
+load_input:                                                          #loads first character into $t0
+	lb $t0, 0($s1)
+	jr $ra
 	
 string_length:                                                       #determines length of the string
 	lb $t1, 0($t2)
-	beq $t1, 0, evaluate_input
-	beq $t1, 10, evaluate_input                                  #if string at end of string -> move on
+	beq $t1, 0, string_length_exit
+	beq $t1, 10, string_length_exit                              #if string at end of string -> move on
 	addi $s2, $s2, 1                                             #increments string_length counter
 	addi $t2, $t2, 1                                             #moves evaluation to next character
 	j string_length
-next_char:
-	j evaluate_input
+	jr $ra
 	
 check_validity:
 	blt $t0, 48, invalid
@@ -61,20 +70,19 @@ check_validity:
 	blt $t0, 97, invalid
 	blt $t0, 103, value					     #checks if character is a-f
 	j invalid
-
 	
-value:
+value:								     #checks char's type
 	blt $t0, 58, number
 	blt $t0, 71, upper_case
 	blt $t0, 103, lower_case
-number:
-	addi $t9, $t0, -48
+number:								     #turns decimal to hex value
+	addi $t9, $t0, -48					     #placed in shallow copy reg ($t9)
 	j valid
-lower_case:
-	addi $t9, $t0, -87
+lower_case:							     #turns letter to hex value
+	addi $t9, $t0, -87					     #placed in shallow copy reg ($t9)
 	j valid
-upper_case:
-	addi $t9, $t0, -55
+upper_case:							     #turns letter to hex value
+	addi $t9, $t0, -55					     #placed in shallow copy reg ($t9)
 	j valid
 		
 invalid:
@@ -89,9 +97,9 @@ valid:
 	addi $t4, $0, 0						     #initializes exponent value
 	sub $t4, $s2, $t5					     #subtracts index from string_length and sets as exponent
 	addi $t4, $t4, -1					     #subtracts one more from exponent and sets as exponent
-	addi $t7, $0, 1						     #initialize temp product
+	addi $t7, $0, 16				 	     #initialize temp product
 	beq $t4, 0, exponent_zero				     #checks if exponent = 0
-	beq $t4, 1, precalculation
+	beq $t4, 1, exponent_one
 loop:
 	mult $s5, $t7						     #multiplies base $t4 amount of times
 	mflo $t7						     #moves multiplied value to $t7
@@ -99,16 +107,16 @@ loop:
 	beq $t4, 1, calculation					     #moves on to calculation
 	j loop
 	
-exponent_zero:
+exponent_zero:							     #sets multiplier to one if 16^0
 	addi $t7, $0, 1
-	j calculation						     #go straight to calculation
-	
-precalculation:
-	addi $t7, $0, 16					     #sets $t7 to 16 for special case
+	j calculation						     #move on to calculation
+exponent_one:							     #sets multiplier to sixteen if 16^1
+	addi $t7, $0, 16					     
 calculation:
-	mult $t9, $t7						     #multiplies character (hex) value by 16^n ($s5)
+	mult $t9, $t7						     #multiplies character (hex) value by 16^n ($t7)
 	mflo $t3						     #$t3 holds the product
 	add $s4, $s4, $t3					     #adds calculation to total hex value
-	addi $s1, $s1, 1					     #updates pointer to string for next character
+	#addi $s1, $s1, 1					     #updates pointer to string for next character
 	addi $t5, $t5, 1                                             #increments index tracker
+	addi $t8, $t5, 1					     #temp reg for line 22 comparison (index+1==length)
 	j print
