@@ -9,17 +9,20 @@
 # $t2: shallow copy of string        $t3: temp reg to hold hex value
 # $t4: exponent value		     $t5: index tracker
 # $t7: weight multiplier for calc    $t8: temp reg to hold index comparison
-# $t9: temp reg to hold hexadecimal value of a valid character
+# $t6: divisor for print_unsigned    $t9: temp reg to hold hexadecimal value
 #
 # Saved registers
 # $s1: string			     $s2: length of string
-# $s4: hexadecimal value of string   $s5: base value
+# $s4: hexadecimal value of string   $s5: base value (16)
+# $s3: holds 1st half of 8-byte num  $s6: holds 2nd half of 8-byte num
+# $s7: used for exception handler
 #
 # PROGRAM: Programming Assignment 1 (String to Hex)
 	.data                                                        # data section
 	string: .space 9                                             # allocates 9 bytes of space in memory
 	error_string: .asciiz "\nInvalid hexadecimal number.\n"      # string to output if input is not hex
-	input_string: .asciiz "\nEnter a string of 8 characters: "   # string to output to request user input
+	input_string: .asciiz "\nEnter a string up to 8 characters: "# string to output to request user input
+	newline: .asciiz "\n"					     # newline char for formatting output
 	.text                                                        # code section
 main:
 	jal request_input
@@ -36,10 +39,30 @@ string_length_exit:
 
 print:
 	bne $t8, $s2, next_char					     # if all chars weren't checked move onto next char
-	li $v0, 36						     # prints the register as unsigned int (call code 36)
+	beq $s2, 8, print_unsigned
+	li $v0, 4
+	la $a0, newline						     # prints newline
+	syscall
+	li $v0, 1						     # prints the register as unsigned int (call code 36)
 	la $a0, ($s4)						     # print contents of $s4 (total hex value)
 	syscall
 	li $v0, 10                                                   # exit program
+	syscall
+print_unsigned:							     # emulates printing of unsigned int from reg by splitting and printing into two ints
+	addi $t6, $0, 10000					     # divisor for 8-byte number
+	divu $s4, $t6
+	mflo $s3                                                     # quotient
+	mfhi $s6 						     # remainder
+	li $v0, 4
+	la $a0, newline						     # prints newline
+	syscall
+	li $v0, 1
+	la $a0, ($s3)						     # prints quotient
+	syscall
+	li $v0, 1
+	la $a0, ($s6)						     # prints remainder
+	syscall
+	li $v0, 10						     # exit program
 	syscall
 
 request_input:
@@ -71,14 +94,17 @@ load_input:                                                          # loads fir
 
 string_length:                                                       # determines length of the string
 	lb $t1, 0($t2)
+	beq $t1, 32, ignore_space
 	beq $t1, 0, string_length_exit
 	beq $t1, 10, string_length_exit                              # if string at end of string -> move on
 	addi $s2, $s2, 1                                             # increments string_length counter
+ignore_space:
 	addi $t2, $t2, 1                                             # moves evaluation to next character
 	j string_length
 	jr $ra
 
 check_validity:
+	beq $t0, 32, check_space_location
 	blt $t0, 48, invalid
 	blt $t0, 58, value					     # checks if character is 0-9
 	blt $t0, 65, invalid
@@ -86,6 +112,11 @@ check_validity:
 	blt $t0, 97, invalid
 	blt $t0, 103, value					     # checks if character is a-f
 	j invalid
+
+check_space_location:						     # exception handler for spaces in string
+	beq $t5, 0, next_char
+	addi $s7, $t5, 1
+	bne $t5, $s7, invalid
 
 value:								     # checks char's type
 	blt $t0, 58, number
@@ -103,7 +134,7 @@ upper_case:							     # turns letter to hex value
 
 invalid:
 	li $v0, 4
-	la $a0, error_string                                         # load address of string to print into $a0
+	la $a0, error_string                                         # load address of error_string to print
 	syscall
 	li $v0, 10                                                   # exits program
 	syscall
